@@ -349,7 +349,7 @@ $('#imageForm').addEventListener('submit', async (e) => {
     f.appendChild(imageActions(u));
     grid.appendChild(f);
   });
-  addToGallery(res.ids.map((id) => ({ type: 'image', fileId: id, prompt, model: model.name })));
+  addToGallery(res.ids.map((id) => ({ type: 'image', fileId: id, prompt, model: res.note ? 'Pollinations' : model.name })));
   toast('¡Imagen lista!');
 });
 
