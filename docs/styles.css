@@ -199,3 +199,32 @@ details.adv summary { cursor: pointer; color: var(--muted); font-size: 13px; }
 .keyframe img { width: 120px; border-radius: 8px; border: 1px solid var(--line); }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .elapsed { font-variant-numeric: tabular-nums; }
+
+/* ---- App / PWA ---- */
+button.api-status { background: #ffffff0a; border: 1px solid var(--line); border-radius: 99px; padding: 6px 12px; cursor: pointer; }
+button.api-status:hover { color: var(--text); }
+.install { padding: 6px 12px; font-size: 13px; }
+.linkbtn { background: none; border: 0; color: #c4b5fd; font-weight: 600; cursor: pointer; padding: 0; text-decoration: underline; }
+dialog { background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 18px; padding: 22px; width: min(480px, calc(100vw - 32px)); box-shadow: 0 30px 80px #000c; }
+dialog::backdrop { background: #000a; backdrop-filter: blur(4px); }
+dialog h3 { margin: 0 0 8px; }
+dialog p, dialog li { color: var(--muted); line-height: 1.55; }
+dialog a { color: #c4b5fd; }
+dialog ol { padding-left: 20px; }
+
+@media (max-width: 900px) {
+  body { padding-bottom: calc(68px + env(safe-area-inset-bottom)); }
+  .topbar { padding-top: calc(10px + env(safe-area-inset-top)); }
+  /* Barra de pestañas inferior estilo app */
+  .tabs {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; order: 0;
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 0;
+    background: #0d0d18f2; backdrop-filter: blur(14px); border-top: 1px solid var(--line);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+  }
+  .tab { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10.5px; padding: 6px 2px; white-space: normal; line-height: 1.15; text-align: center; position: relative; }
+  .tab .count { position: absolute; top: 0; right: 8px; margin: 0; }
+  .tab.active { background: #ffffff10; box-shadow: none; }
+  .brand { flex: 1; }
+  .toast { bottom: calc(84px + env(safe-area-inset-bottom)); }
+}

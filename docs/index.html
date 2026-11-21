@@ -2,8 +2,16 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Lumina Studio</title>
+  <meta name="description" content="Crea vídeos e imágenes con IA y edita fotos. Gratis." />
+  <meta name="theme-color" content="#0a0a12" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Lumina" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%238b5cf6'/><stop offset='1' stop-color='%2306b6d4'/></linearGradient></defs><rect width='32' height='32' rx='8' fill='url(%23g)'/><path d='M12 9l11 7-11 7z' fill='white'/></svg>" />
   <link rel="stylesheet" href="styles.css" />
 </head>
@@ -14,19 +22,20 @@
       <span>Lumina <b>Studio</b></span><span class="free-pill">GRATIS</span>
     </div>
     <nav class="tabs" role="tablist">
-      <button class="tab active" data-tab="video">🎬 Vídeo</button>
-      <button class="tab" data-tab="image">🖼️ Imagen</button>
-      <button class="tab" data-tab="aiedit">✨ Editar con IA</button>
-      <button class="tab" data-tab="editor">🎚️ Editor de fotos</button>
-      <button class="tab" data-tab="gallery">📁 Galería <span id="galleryCount" class="count">0</span></button>
+      <button class="tab active" data-tab="video"><span>🎬</span> Vídeo</button>
+      <button class="tab" data-tab="image"><span>🖼️</span> Imagen</button>
+      <button class="tab" data-tab="aiedit"><span>✨</span> Editar IA</button>
+      <button class="tab" data-tab="editor"><span>🎚️</span> Retocar</button>
+      <button class="tab" data-tab="gallery"><span>📁</span> Galería <span id="galleryCount" class="count">0</span></button>
     </nav>
-    <span id="apiStatus" class="api-status">…</span>
+    <button id="installBtn" class="btn primary install hidden" type="button">📲 Instalar app</button>
+    <button id="apiStatus" class="api-status" type="button">…</button>
   </header>
 
   <div id="setupBanner" class="banner hidden">
     <b>100 % gratis, sin cuenta.</b> Los vídeos usan GPUs gratuitas de Hugging Face con una cuota diaria limitada.
-    Para tener <b>mucha más cuota</b> (también gratis): crea una cuenta en huggingface.co, genera un token en
-    <i>Settings → Access Tokens</i> y ponlo en el archivo <code>.env</code> como <code>HF_TOKEN=hf_...</code>.
+    Si se agota, puedes conseguir <b>mucha más cuota gratis</b> con una cuenta de Hugging Face.
+    <button class="linkbtn" id="bannerSettings" type="button">Cómo hacerlo →</button>
     <button class="banner-x" id="bannerClose" title="Cerrar">✕</button>
   </div>
 
@@ -219,7 +228,7 @@
           <div class="placeholder" id="editorPh">
             <div class="ph-icon">🎚️</div>
             <h2>Editor de fotos</h2>
-            <p>Filtros, brillo, contraste, recortes y texto. Funciona en tu navegador, sin clave de API.</p>
+            <p>Filtros, brillo, contraste, recortes y texto. Funciona sin conexión.</p>
           </div>
         </div>
       </div>
@@ -240,7 +249,37 @@
     </section>
   </main>
 
+  <dialog id="settings">
+    <form method="dialog">
+      <h3>⚙️ Más cuota gratis</h3>
+      <p>Lumina usa GPUs gratuitas de Hugging Face. Sin cuenta tienes una cuota pequeña al día; con una cuenta gratuita tienes mucha más.</p>
+      <ol>
+        <li>Crea una cuenta gratis en <a href="https://huggingface.co/join" target="_blank" rel="noopener">huggingface.co/join</a>.</li>
+        <li>Abre <a href="https://huggingface.co/settings/tokens/new?tokenType=read" target="_blank" rel="noopener">este enlace</a>, ponle un nombre (p. ej. «lumina») y pulsa <b>Create token</b>.</li>
+        <li>Copia el token (empieza por <code>hf_</code>) y pégalo aquí:</li>
+      </ol>
+      <input id="hfToken" type="password" placeholder="hf_…" autocomplete="off" spellcheck="false" />
+      <p class="hint">El token se guarda solo en este dispositivo y únicamente se envía a Hugging Face. Déjalo vacío para quitarlo.</p>
+      <div class="btnrow">
+        <button class="btn" id="settingsClose" type="button">Cerrar</button>
+        <button class="btn primary" id="settingsSave" type="submit">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
   <div id="toast" class="toast"></div>
   <script type="module" src="app.js"></script>
+  <script>
+    // App instalable (PWA)
+    if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+    let deferredPrompt;
+    addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; document.getElementById('installBtn').classList.remove('hidden'); });
+    document.getElementById('installBtn').addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt = null;
+      document.getElementById('installBtn').classList.add('hidden');
+    });
+    addEventListener('appinstalled', () => document.getElementById('installBtn').classList.add('hidden'));
+  </script>
 </body>
 </html>

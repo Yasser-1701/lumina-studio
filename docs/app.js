@@ -1,4 +1,5 @@
 import { VIDEO_MODELS, IMAGE_MODELS, RATIOS, AI_EDIT_TOOLS, PROMPT_CHIPS } from './models.js';
+import { startJob, token, files } from './engine.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -22,14 +23,27 @@ function showTab(name) {
 }
 $$('.tab').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
 
-// ================= Estado del servidor =================
-fetch('/api/config').then((r) => r.json()).then((c) => {
+// ================= Estado / ajustes (token opcional) =================
+function refreshStatus() {
+  const has = Boolean(token.get());
   const s = $('#apiStatus');
-  s.textContent = c.hfToken ? 'Gratis · cuota ampliada' : 'Gratis · modo anónimo';
-  s.className = 'api-status ' + (c.hfToken ? 'ok' : 'off');
-  if (!c.hfToken && !store.get('lumina.bannerClosed', false)) $('#setupBanner').classList.remove('hidden');
-}).catch(() => { $('#apiStatus').textContent = 'Servidor no disponible'; });
+  s.textContent = has ? '✓ Cuota ampliada' : '⚙️ Más cuota';
+  s.className = 'api-status ' + (has ? 'ok' : 'off');
+  $('#setupBanner').classList.toggle('hidden', has || store.get('lumina.bannerClosed', false));
+}
+refreshStatus();
 $('#bannerClose').addEventListener('click', () => { $('#setupBanner').classList.add('hidden'); store.set('lumina.bannerClosed', true); });
+const dlg = $('#settings');
+const openSettings = () => { $('#hfToken').value = token.get(); dlg.showModal(); };
+$('#apiStatus').addEventListener('click', openSettings);
+$('#bannerSettings').addEventListener('click', openSettings);
+$('#settingsSave').addEventListener('click', (e) => {
+  e.preventDefault();
+  const v = $('#hfToken').value.trim();
+  if (v && !/^hf_[A-Za-z0-9]{20,}$/.test(v)) return toast('El token debe empezar por hf_');
+  token.set(v); dlg.close(); refreshStatus(); toast(v ? '¡Token guardado! Ya tienes más cuota' : 'Token eliminado');
+});
+$('#settingsClose').addEventListener('click', () => dlg.close());
 
 // ================= Utilidades de imagen =================
 function loadImage(src) {
@@ -52,9 +66,16 @@ async function prepareImage(src, max = 1536) {
 }
 async function urlToDataUrl(url) { return blobToDataUrl(await (await fetch(url)).blob()); }
 
+const EXT = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'video/mp4': 'mp4', 'video/webm': 'webm' };
+const urlNames = new Map(); // blob: URL -> nombre de archivo
 function download(url, name) {
   const a = document.createElement('a');
-  a.href = url; a.download = name || url.split('/').pop(); document.body.appendChild(a); a.click(); a.remove();
+  a.href = url; a.download = name || urlNames.get(url) || `lumina-${Date.now()}`; document.body.appendChild(a); a.click(); a.remove();
+}
+function blobUrl(blob, prefix = 'lumina') {
+  const u = URL.createObjectURL(blob);
+  urlNames.set(u, `${prefix}-${Date.now()}.${EXT[(blob.type || '').split(';')[0]] || (blob.type.startsWith('video') ? 'mp4' : 'png')}`);
+  return u;
 }
 
 // ================= Zonas de arrastre =================
@@ -122,31 +143,29 @@ async function runJob(kind, params, stage, button) {
       <div class="status">Iniciando…</div>
       <div class="bar"><i></i></div>
       <div class="sub"><span class="detail"></span> · <span class="elapsed">0:00</span></div>
-      <p class="hint">Los modelos gratuitos se ejecutan en GPUs compartidas: puede haber cola. No cierres esta pestaña.</p>
+      <p class="hint">Los modelos gratuitos se ejecutan en GPUs compartidas: puede haber cola. No cierres la app mientras se genera.</p>
       <button class="btn cancel" type="button">Cancelar</button>
     </div>`;
   const $status = $('.status', stage), $bar = $('.bar > i', stage), $detail = $('.detail', stage), $el = $('.elapsed', stage);
-  let jobId = null, cancelled = false;
-  $('.cancel', stage).onclick = () => { cancelled = true; if (jobId) fetch(`/api/jobs/${jobId}`, { method: 'DELETE' }); };
-  const tick = setInterval(() => { $el.textContent = fmtTime((Date.now() - started) / 1000); }, 500);
-
+  let job;
+  const tick = setInterval(() => {
+    $el.textContent = fmtTime((Date.now() - started) / 1000);
+    if (!job) return;
+    $status.textContent = job.stage || 'Procesando…';
+    $detail.textContent = job.detail || 'Trabajando';
+    $bar.style.width = job.progress != null ? `${Math.round(Math.min(1, job.progress) * 100)}%`
+      : `${Math.min(92, ((Date.now() - started) / 1000 / 120) * 100)}%`;
+  }, 400);
   try {
-    const r = await fetch('/api/jobs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, params }) });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error || 'Error al iniciar');
-    jobId = data.id;
-    for (;;) {
-      await new Promise((ok) => setTimeout(ok, 1500));
-      if (cancelled) throw new Error('Cancelado');
-      const j = await (await fetch(`/api/jobs/${jobId}`)).json();
-      if (j.error && j.status !== 'error') throw new Error(j.error);
-      $status.textContent = j.stage || 'Procesando…';
-      $detail.textContent = j.detail || 'Trabajando';
-      if (j.progress != null) $bar.style.width = `${Math.round(Math.min(1, j.progress) * 100)}%`;
-      else $bar.style.width = `${Math.min(92, ((Date.now() - started) / 1000 / 120) * 100)}%`;
-      if (j.status === 'done') return { ...j.result, prompt: j.prompt, note: j.note, seconds: Math.round((Date.now() - started) / 1000) };
-      if (j.status === 'error') throw new Error(j.error);
+    job = startJob(kind, params);
+    $('.cancel', stage).onclick = () => job.abort();
+    const res = await job.promise;
+    const ids = [], urls = [];
+    for (const b of res.blobs) {
+      const id = (crypto.randomUUID?.() || String(Math.random()).slice(2));
+      await files.put(id, b); ids.push(id); urls.push(blobUrl(b, `lumina-${res.type === 'video' ? 'video' : 'imagen'}`));
     }
+    return { ...res, ids, urls, keyframe: res.keyframe ? blobUrl(res.keyframe, 'lumina-fotograma') : null, seconds: Math.round((Date.now() - started) / 1000) };
   } catch (e) {
     stage.innerHTML = `<div class="error-box"><b>No se pudo completar.</b><br>${esc(e.message)}</div>`;
     return null;
@@ -178,7 +197,7 @@ async function sendTo(target, url) {
 }
 
 // ================= Galería =================
-function addToGallery(items) {
+function addToGallery(items) { // items: { type, fileId, prompt, model }
   const g = store.get('lumina.gallery', []);
   g.unshift(...items.map((it) => ({ id: crypto.randomUUID?.() || String(Math.random()), date: Date.now(), ...it })));
   store.set('lumina.gallery', g.slice(0, 300));
@@ -192,14 +211,25 @@ $$('#galleryFilter button').forEach((b) => b.onclick = () => {
   renderGallery();
 });
 $('#galleryClear').onclick = () => {
-  if (!confirm('¿Vaciar la galería? Los archivos seguirán en la carpeta outputs/ del servidor.')) return;
-  store.set('lumina.gallery', []); renderGallery(); updateGalleryCount();
+  if (!confirm('¿Vaciar la galería? Se borrarán todas tus creaciones de este dispositivo.')) return;
+  store.set('lumina.gallery', []); files.clear(); renderGallery(); updateGalleryCount();
 };
-function renderGallery() {
+const galleryUrls = new Map(); // fileId -> blob URL
+async function fileUrl(it) {
+  if (galleryUrls.has(it.fileId)) return galleryUrls.get(it.fileId);
+  const b = await files.get(it.fileId);
+  if (!b) return null;
+  const u = blobUrl(b, `lumina-${it.type === 'video' ? 'video' : 'imagen'}`);
+  galleryUrls.set(it.fileId, u); return u;
+}
+async function renderGallery() {
   const items = store.get('lumina.gallery', []).filter((i) => galleryFilter === 'all' || i.type === galleryFilter);
   const box = $('#gallery'); box.innerHTML = '';
   $('#galleryEmpty').classList.toggle('hidden', items.length > 0);
-  for (const it of items) {
+  for (const raw of items) {
+    const url = await fileUrl(raw);
+    if (!url) continue;
+    const it = { ...raw, url };
     const el = document.createElement('div'); el.className = 'gitem';
     el.innerHTML = `
       <span class="badge">${it.type === 'video' ? '🎬 Vídeo' : '🖼️ Imagen'}</span>
@@ -216,7 +246,7 @@ function renderGallery() {
     add('⬇', () => download(it.url));
     if (it.type === 'image') { add('🎬', () => sendTo('video', it.url)); add('✨', () => sendTo('aiedit', it.url)); add('🎚️', () => sendTo('editor', it.url)); }
     if (it.prompt) add('↺ Prompt', () => { const tab = it.type === 'video' ? 'video' : 'image'; $(`#${tab}Prompt`).value = it.prompt; showTab(tab); });
-    add('🗑', () => { store.set('lumina.gallery', store.get('lumina.gallery', []).filter((x) => x.id !== it.id)); renderGallery(); updateGalleryCount(); });
+    add('🗑', () => { store.set('lumina.gallery', store.get('lumina.gallery', []).filter((x) => x.id !== it.id)); files.del(it.fileId); renderGallery(); updateGalleryCount(); });
     box.appendChild(el);
   }
 }
@@ -277,14 +307,14 @@ $('#videoForm').addEventListener('submit', async (e) => {
       <div class="actions">
         <button class="btn primary" data-a="dl">⬇ Descargar MP4</button>
         <button class="btn" data-a="again">↻ Otra versión</button>
-        ${res.keyframe ? '<button class="btn" data-a="kf">🖼️ Ver fotograma inicial</button>' : ''}
+        ${res.keyframe ? '<button class="btn" data-a="kf">🖼️ Abrir fotograma inicial</button>' : ''}
       </div>
       ${res.note ? `<p class="hint">${esc(res.note)}</p>` : ''}
     </div>`;
   $('[data-a="dl"]', stage).onclick = () => download(url);
   $('[data-a="again"]', stage).onclick = () => { $('#videoSeed').value = ''; $('#videoForm').requestSubmit(); };
-  const kf = $('[data-a="kf"]', stage); if (kf) kf.onclick = () => window.open(res.keyframe, '_blank');
-  addToGallery([{ type: 'video', url, prompt, model: model.name }]);
+  const kf = $('[data-a="kf"]', stage); if (kf) kf.onclick = () => sendTo('editor', res.keyframe);
+  addToGallery([{ type: 'video', fileId: res.ids[0], prompt, model: model.name }]);
   toast('¡Vídeo listo! Guardado en la galería');
 });
 
@@ -319,7 +349,7 @@ $('#imageForm').addEventListener('submit', async (e) => {
     f.appendChild(imageActions(u));
     grid.appendChild(f);
   });
-  addToGallery(res.urls.map((u) => ({ type: 'image', url: u, prompt, model: model.name })));
+  addToGallery(res.ids.map((id) => ({ type: 'image', fileId: id, prompt, model: model.name })));
   toast('¡Imagen lista!');
 });
 
@@ -362,7 +392,7 @@ $('#aiEditForm').addEventListener('submit', async (e) => {
   again.onclick = () => sendTo('aiedit', out);
   actions.prepend(again);
   $('.result', stage).appendChild(actions);
-  addToGallery([{ type: 'image', url: out, prompt: aiTool.needsPrompt ? prompt : aiTool.name.replace(/^\S+\s/, ''), model: aiTool.key === 'rmbg' ? 'Quitar fondo' : 'FLUX Kontext' }]);
+  addToGallery([{ type: 'image', fileId: res.ids[0], prompt: aiTool.needsPrompt ? prompt : aiTool.name.replace(/^\S+\s/, ''), model: aiTool.key === 'rmbg' ? 'Quitar fondo' : 'FLUX Kontext' }]);
   toast('¡Edición lista!');
 });
 

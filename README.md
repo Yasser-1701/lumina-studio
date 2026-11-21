@@ -1,64 +1,59 @@
-# ✦ Lumina Studio — Estudio de IA 100 % gratis
+# ✦ Lumina Studio — App de IA 100 % gratis
 
-Crea **vídeos con IA**, genera **imágenes** y **edita fotos**, todo con modelos open‑source gratuitos.
-No hace falta tarjeta, ni API de pago, ni cuenta.
+### 👉 Abrir la app: **https://yasser-1701.github.io/lumina-studio/**
 
-| Función | Modelo (gratis) | Dónde se ejecuta |
-|---|---|---|
-| 🎬 Imagen → Vídeo | **Wan 2.2** (Alibaba), **LTX‑2.3** (con audio), LTX‑Video | GPUs gratuitas de Hugging Face |
-| 🎬 Texto → Vídeo | LTX‑Video directo, o FLUX + Wan 2.2 / LTX‑2.3 (2 pasos) | Hugging Face |
-| 🖼️ Texto → Imagen | **FLUX.1 Schnell**, **FLUX.1 Krea**, Pollinations | Hugging Face / Pollinations |
-| ✨ Editar con una frase | **FLUX.1 Kontext** («ponle una bufanda roja», «cambia el fondo»…) | Hugging Face |
-| ✂️ Quitar fondo | BiRefNet | Hugging Face |
-| 🎚️ Editor de fotos | Filtros, brillo, contraste, temperatura, viñeta, recorte, giro, texto | Tu navegador (sin internet) |
-| 🌐 Traducción de prompts | Escribe en español; se traduce al inglés automáticamente | Pollinations |
+Crea **vídeos con IA**, genera **imágenes** y **edita fotos** desde el móvil o el ordenador.
+Gratis, sin tarjeta y sin cuenta.
 
-Además tiene una **galería** con todo lo que creas. Todo se conecta entre sí: genera una imagen, edítala con IA, retócala y **anímala** como vídeo con un clic.
+## 📲 Instalarla como app en el móvil
 
-## Instalación
+**Android (Chrome):** abre el enlace, pulsa **«📲 Instalar app»** arriba (o el menú ⋮ → *Instalar aplicación*).
 
-Necesitas [Node.js 18 o superior](https://nodejs.org).
+**iPhone (Safari):** abre el enlace, pulsa el botón **Compartir** ⬆️ → **«Añadir a pantalla de inicio»**.
 
-```bash
-cd lumina-studio
-npm install
-npm start
-```
+**Ordenador (Chrome/Edge):** pulsa el icono de instalar en la barra de direcciones.
 
-Abre **http://localhost:3000**.
+La app aparece con su icono, se abre a pantalla completa y el editor de fotos funciona sin conexión.
 
-## (Opcional, gratis) Más cuota de GPU
+## Qué puedes hacer
 
-Sin cuenta funciona en modo anónimo, pero Hugging Face da poca cuota diaria de GPU a los usuarios anónimos.
-Con una cuenta gratuita tienes bastante más:
+| Función | Modelo (gratis) |
+|---|---|
+| 🎬 Imagen → Vídeo | **Wan 2.2**, **LTX‑2.3** (¡con audio!), LTX‑Video |
+| 🎬 Texto → Vídeo | LTX‑Video directo, o FLUX + Wan 2.2 / LTX‑2.3 |
+| 🖼️ Texto → Imagen | **FLUX.1 Schnell**, **FLUX.1 Krea**, Pollinations |
+| ✨ Editar con una frase | **FLUX.1 Kontext** («ponle una bufanda roja», «cambia el fondo»…) |
+| ✂️ Quitar fondo | BiRefNet (PNG transparente) |
+| 🎚️ Retocar | Filtros, brillo, contraste, temperatura, viñeta, recortes, giro y texto |
+| 📁 Galería | Todo se guarda en tu dispositivo |
 
-1. Crea una cuenta en https://huggingface.co (gratis).
-2. Ve a **Settings → Access Tokens → Create new token**, de tipo **Read**.
-3. Copia `.env.example` como `.env` y pega el token:
-   ```
-   HF_TOKEN=hf_xxxxxxxxxxxxxxxx
-   ```
-4. Reinicia el servidor (`npm start`).
+Puedes escribir en español: los prompts se traducen al inglés automáticamente.
 
-## Qué esperar (es gratis, con límites)
+## ⚙️ Más cuota (gratis)
 
-- **Tiempo:** de 15 s (imágenes) a 1–4 min (vídeos). Si hay mucha gente usando el modelo, entras en cola.
-- **Duración:** Wan 2.2 hasta 5 s, LTX‑2.3 hasta 10 s, LTX‑Video hasta 8 s.
-- **Cuota:** la cuota de GPU se recarga cada día. Si se agota, la app te lo dice. Mientras tanto puedes usar Pollinations (imágenes sin cuota) y el editor de fotos.
-- La calidad es muy buena, pero no llega al nivel de los servicios de pago más avanzados.
-- Los archivos generados se guardan en la carpeta `outputs/`.
+Los modelos usan GPUs gratuitas de Hugging Face, con una cuota diaria. Si se agota:
 
-## Si un modelo deja de funcionar
+1. Crea una cuenta gratis en https://huggingface.co/join
+2. Crea un token en https://huggingface.co/settings/tokens/new?tokenType=read
+3. En la app pulsa **«⚙️ Más cuota»** (arriba a la derecha) y pégalo.
 
-Los modelos son *Spaces* públicos de Hugging Face. Si alguno cambia o lo retiran, edita el bloque `SPACES` al principio de `server.js` y pon otro Space equivalente. Puedes buscarlos en https://huggingface.co/spaces.
+El token se guarda solo en tu dispositivo.
 
-## Estructura
+## Límites (es gratis)
+
+- Imágenes: ~15 s. Vídeos: 1–4 min (puede haber cola).
+- Vídeos de hasta 5 s (Wan 2.2), 8 s (LTX‑Video) o 10 s (LTX‑2.3).
+- Pollinations: 1 imagen cada ~45 s (la app espera sola).
+
+## Para desarrolladores
+
+La app es 100 % estática (HTML + JS) y está en la carpeta `docs/`, publicada con GitHub Pages.
+Para usarla en local: `npm start` y abre http://localhost:3000. No necesita `npm install`.
 
 ```
-server.js         Servidor + cola de trabajos (Hugging Face / Pollinations)
-public/index.html Interfaz
-public/app.js     Lógica: vídeo, imagen, edición IA, editor manual, galería
-public/models.js  Catálogo de modelos y opciones
-public/styles.css Estilos
-outputs/          Tus vídeos e imágenes generados
+docs/index.html   Interfaz
+docs/app.js       Lógica de la interfaz, editor de fotos y galería
+docs/engine.js    Motor de IA (Hugging Face Spaces + Pollinations) — cambia aquí los modelos (SPACES)
+docs/models.js    Catálogo de modelos y opciones
+docs/sw.js        Service worker (app instalable / offline)
 ```
