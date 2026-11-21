@@ -30,6 +30,7 @@ export const VIDEO_MODELS = [
 ];
 
 export const IMAGE_MODELS = [
+  { key: 'local', name: '🖥️ Mi GPU · Z‑Image‑Turbo', tag: 'Se genera en tu propio ordenador: gratis, sin cuota y sin límites. Requiere instalar «Lumina Local» (botón «🖥️ Mi GPU»).' },
   { key: 'flux-schnell', name: 'FLUX.1 Schnell', tag: 'Rápido y de buena calidad (Hugging Face).' },
   { key: 'flux-krea', name: 'FLUX.1 Krea', tag: 'Máximo realismo y detalle. Más lento.' },
   { key: 'pollinations', name: 'Pollinations', tag: 'Sin cuota diaria. Calidad básica y pequeña marca de agua.' },

@@ -29,6 +29,21 @@ La app aparece con su icono, se abre a pantalla completa y el editor de fotos fu
 
 Puedes escribir en español: los prompts se traducen al inglés automáticamente.
 
+## 🖥️ Usar tu propia GPU (Windows, gratis y sin límites)
+
+Genera imágenes en tu ordenador con **Z‑Image‑Turbo**, sin cuota y sin internet para generar.
+Funciona con tarjetas **AMD, NVIDIA o Intel de 6 GB o más** (usa Vulkan, vía [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp)).
+
+1. En la app pulsa **«🖥️ Mi GPU»** → **«Instalar Lumina Local (Windows)»**
+   (o descarga [`instalar-lumina-local.bat`](https://yasser-1701.github.io/lumina-studio/local/instalar-lumina-local.bat)).
+2. Ábrelo con doble clic. Si sale «Windows protegió su PC»: **Más información → Ejecutar de todas formas**.
+3. Descarga ~7 GB la primera vez (si se corta, vuelve a abrirlo y continúa).
+4. Usa el icono **«Lumina Local»** del escritorio: arranca tu GPU y abre la app conectada.
+   En la pestaña Imagen elige **«🖥️ Mi GPU · Z‑Image‑Turbo»**.
+
+Se instala en `%LOCALAPPDATA%\LuminaLocal` (sin permisos de administrador). Para quitarlo, usa
+«Desinstalar Lumina Local.bat» de esa carpeta. Los vídeos siguen en la nube gratuita: una gráfica de 8 GB no da para vídeo.
+
 ## ⚙️ Más cuota (gratis)
 
 Los modelos usan GPUs gratuitas de Hugging Face, con una cuota diaria. Si se agota:

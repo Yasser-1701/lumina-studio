@@ -235,3 +235,9 @@ dialog ol { padding-left: 20px; }
   .brand { font-size: 17px; }
   .install { padding: 6px 10px; }
 }
+
+/* ---- Mi GPU ---- */
+.gpu-btn.ok { border-color: #22c55e66; color: var(--text); }
+.gpu-state { background: var(--bg2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; color: var(--text) !important; }
+.dl-btn { display: inline-block; margin: 8px 0 4px; text-decoration: none; color: #fff !important; }
+@media (max-width: 600px) { .gpu-btn:not(.ok) { display: none; } }

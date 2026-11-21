@@ -29,6 +29,7 @@
       <button class="tab" data-tab="gallery"><span>📁</span> Galería <span id="galleryCount" class="count">0</span></button>
     </nav>
     <button id="installBtn" class="btn primary install hidden" type="button">📲 Instalar app</button>
+    <button id="gpuStatus" class="api-status gpu-btn" type="button">🖥️ Mi GPU</button>
     <button id="apiStatus" class="api-status" type="button">…</button>
   </header>
 
@@ -263,6 +264,28 @@
       <div class="btnrow">
         <button class="btn" id="settingsClose" type="button">Cerrar</button>
         <button class="btn primary" id="settingsSave" type="submit">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="gpuDlg">
+    <form method="dialog">
+      <h3>🖥️ Usar mi propia GPU</h3>
+      <p id="gpuDlgStatus" class="gpu-state">Comprobando…</p>
+      <p>Genera imágenes en tu ordenador con <b>Z‑Image‑Turbo</b>: gratis, sin cuota y sin límites.
+        Funciona en Windows con tarjetas AMD, NVIDIA o Intel de 6 GB o más (con Vulkan).</p>
+      <ol>
+        <li>Descarga el instalador:
+          <a class="btn primary dl-btn" href="local/instalar-lumina-local.bat" download>⬇ Instalar Lumina Local (Windows)</a></li>
+        <li>Ábrelo con doble clic. Si Windows muestra «Windows protegió su PC», pulsa <b>Más información → Ejecutar de todas formas</b>.</li>
+        <li>Espera a que descargue el programa y el modelo (<b>~7 GB</b>, solo la primera vez).</li>
+        <li>Se creará el icono <b>«Lumina Local»</b> en tu escritorio. Ábrelo cada vez que quieras usar tu GPU: se abrirá esta app ya conectada.</li>
+      </ol>
+      <p class="hint">Si el navegador pregunta si esta web puede acceder a «dispositivos de tu red local», pulsa <b>Permitir</b>: es la conexión con tu propio ordenador.
+        Los vídeos siguen generándose en la nube gratuita, porque una gráfica de 8 GB no da para vídeo.</p>
+      <div class="btnrow">
+        <button class="btn" type="button" id="gpuRetry">↻ Volver a comprobar</button>
+        <button class="btn" type="submit">Cerrar</button>
       </div>
     </form>
   </dialog>

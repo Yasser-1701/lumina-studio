@@ -1,6 +1,6 @@
 // Service worker: permite instalar la app y abrirla sin conexión
 // (la generación con IA sí necesita internet; el editor de fotos funciona offline).
-const CACHE = 'lumina-v3';
+const CACHE = 'lumina-v4';
 const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'engine.js', 'models.js', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png',
   'https://cdn.jsdelivr.net/npm/@gradio/client@2.8.0/dist/index.min.js'];

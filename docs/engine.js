@@ -86,6 +86,88 @@ async function pollinationsImage(prompt, ratio, seed, job) {
   throw new Error('Pollinations está saturado, inténtalo en un minuto.');
 }
 
+// ---------- Mi GPU (stable-diffusion.cpp en tu ordenador) ----------
+// El instalador de Windows arranca sd-server en este puerto con Z-Image-Turbo.
+export const LOCAL_URL = 'http://127.0.0.1:1234';
+const LOCAL_STAGES = {
+  queued: 'En cola en tu GPU…', waiting: 'Esperando a la GPU…', preparing: 'Cargando el modelo en tu GPU…',
+  conditioning: 'Leyendo el prompt…', sampling: 'Dibujando en tu GPU…', vae_decode: 'Revelando la imagen…',
+  vae_encode: 'Preparando la imagen…', encoding: 'Guardando…', upscaling: 'Ampliando…',
+};
+
+export const localGpu = {
+  connected: false,
+  model: '',
+  // Comprueba si el servidor local está encendido (no lanza errores)
+  async check() {
+    try {
+      const r = await fetch(`${LOCAL_URL}/sdcpp/v1/capabilities`, { signal: AbortSignal.timeout(2500) });
+      if (!r.ok) throw new Error();
+      const c = await r.json();
+      this.connected = (c.supported_modes || ['img_gen']).includes('img_gen');
+      this.model = c.model?.name || c.model?.stem || '';
+    } catch { this.connected = false; this.model = ''; }
+    return this.connected;
+  },
+};
+
+async function localImage(job, prompt, ratio, seed) {
+  if (!(await localGpu.check())) {
+    throw new Error('Tu GPU local no está conectada. Abre «Lumina Local» en tu ordenador (el icono del escritorio) y espera a que diga «listening». Pulsa «🖥️ Mi GPU» para ver cómo instalarlo.');
+  }
+  const [width, height] = IMG_SIZES[ratio] || IMG_SIZES['1:1'];
+  const r = await fetch(`${LOCAL_URL}/sdcpp/v1/img_gen`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      prompt, negative_prompt: '', width, height, seed, batch_count: 1,
+      // Valores recomendados para Z-Image-Turbo: 8 pasos, CFG 1
+      sample_params: { sample_method: 'euler', sample_steps: 8, guidance: { txt_cfg: 1.0 } },
+      vae_tiling_params: { enabled: true }, // menos memoria al revelar (8 GB de VRAM)
+      output_format: 'png',
+    }),
+  });
+  const sub = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(`Tu GPU local rechazó el trabajo: ${sub.error?.message || sub.error || r.status}`);
+  const id = sub.id;
+  job.cancel = () => fetch(`${LOCAL_URL}/sdcpp/v1/jobs/${id}/cancel`, { method: 'POST' }).catch(() => {});
+  const started = Date.now();
+  for (;;) {
+    await sleep(1000);
+    if (job.cancelled) throw new Error('Cancelado');
+    let j;
+    try {
+      const jr = await fetch(`${LOCAL_URL}/sdcpp/v1/jobs/${id}`);
+      if (jr.status === 404 || jr.status === 410) throw new Error('El servidor local perdió el trabajo (¿se cerró la ventana de Lumina Local?)');
+      j = await jr.json();
+    } catch (e) {
+      throw new Error(/perdió/.test(e.message) ? e.message : 'Se perdió la conexión con tu GPU local. ¿Cerraste la ventana de «Lumina Local»?');
+    }
+    const pr = j.progress || {};
+    job.stage = j.status === 'queued' ? LOCAL_STAGES.queued : (LOCAL_STAGES[pr.stage] || 'Generando en tu GPU…');
+    if (pr.stage === 'sampling' && pr.total) {
+      job.progress = pr.completed / pr.total;
+      job.detail = `Paso ${pr.completed} de ${pr.total}`;
+    } else {
+      job.detail = j.status === 'queued' && j.queue_position ? `Posición ${j.queue_position}` : 'Tu ordenador está trabajando';
+    }
+    if (j.status === 'completed') {
+      const img = j.result?.images?.[0]?.b64_json;
+      if (!img) throw new Error('Tu GPU terminó pero no devolvió ninguna imagen');
+      const fmt = j.result.output_format || 'png';
+      return dataUrlToBlob(`data:image/${fmt === 'jpg' ? 'jpeg' : fmt};base64,${img}`);
+    }
+    if (j.status === 'failed') {
+      const msg = j.error?.message || 'error desconocido';
+      throw new Error(/memory|alloc|vram|oom/i.test(msg)
+        ? `A tu GPU le faltó memoria (${msg}). Prueba el formato 1:1 o cierra otros programas que usen la gráfica.`
+        : `Tu GPU local falló: ${msg}`);
+    }
+    if (j.status === 'cancelled') throw new Error('Cancelado');
+    if (Date.now() - started > 20 * 60 * 1000) { job.cancel(); throw new Error('Tu GPU tardó más de 20 minutos. Prueba una imagen más pequeña.'); }
+  }
+}
+
 // ---------- Hugging Face Spaces ----------
 const hosts = new Map();
 async function spaceHost(space) {
@@ -204,6 +286,7 @@ const fitBox = (w, h, long) => (w >= h ? [r32(long), r32((long * h) / w)] : [r32
 async function generateImageBlob(job, model, prompt, ratio, seed) {
   const [w, h] = IMG_SIZES[ratio] || IMG_SIZES['1:1'];
   if (model === 'pollinations') return pollinationsImage(prompt, ratio, seed, job);
+  if (model === 'local') return localImage(job, prompt, ratio, seed);
   const args = model === 'flux-krea'
     ? { prompt, seed, randomize_seed: false, width: w, height: h, guidance_scale: 4.5, num_inference_steps: 28 }
     : { prompt, seed, randomize_seed: false, width: w, height: h, num_inference_steps: 4 };
@@ -261,7 +344,7 @@ const tasks = {
 
     if (!image) {
       job.stage = 'Paso 1/2 · Creando fotograma inicial…';
-      image = await generateImageBlob(job, 'flux-schnell', prompt, ratio, seed);
+      image = await generateImageBlob(job, p.localKeyframe && localGpu.connected ? 'local' : 'flux-schnell', prompt, ratio, seed);
       keyframe = image;
       job.progress = null; job.detail = '';
     }

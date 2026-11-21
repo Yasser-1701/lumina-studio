@@ -1,5 +1,5 @@
 import { VIDEO_MODELS, IMAGE_MODELS, RATIOS, AI_EDIT_TOOLS, PROMPT_CHIPS } from './models.js';
-import { startJob, token, files } from './engine.js';
+import { startJob, token, files, localGpu } from './engine.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -44,6 +44,34 @@ $('#settingsSave').addEventListener('click', (e) => {
   token.set(v); dlg.close(); refreshStatus(); toast(v ? '¡Token guardado! Ya tienes más cuota' : 'Token eliminado');
 });
 $('#settingsClose').addEventListener('click', () => dlg.close());
+
+// ================= Mi GPU (servidor local) =================
+const wantsLocal = new URLSearchParams(location.search).has('local');
+let localAnnounced = false;
+async function refreshGpu() {
+  const ok = await localGpu.check();
+  const b = $('#gpuStatus');
+  b.textContent = ok ? '🟢 Mi GPU' : '🖥️ Mi GPU';
+  b.classList.toggle('ok', ok);
+  b.title = ok ? `Conectada${localGpu.model ? ': ' + localGpu.model : ''}` : 'Usar mi propia GPU';
+  $('#gpuDlgStatus').innerHTML = ok
+    ? `🟢 <b>Conectada.</b> Elige «🖥️ Mi GPU» como modelo en la pestaña Imagen.${localGpu.model ? ` <span class="hint">(${esc(localGpu.model)})</span>` : ''}`
+    : '⚪ <b>No conectada.</b> Instálalo (solo una vez) o abre «Lumina Local» desde tu escritorio.';
+  if (ok && !localAnnounced) {
+    localAnnounced = true;
+    if (wantsLocal || iModel.value !== 'local') {
+      if (wantsLocal) { iModel.value = 'local'; refreshImageTag(); showTab('image'); }
+      toast('🟢 Tu GPU está conectada');
+    }
+  }
+  if (!ok) localAnnounced = false;
+  return ok;
+}
+$('#gpuStatus').addEventListener('click', () => { refreshGpu(); $('#gpuDlg').showModal(); });
+$('#gpuRetry').addEventListener('click', async () => { $('#gpuDlgStatus').textContent = 'Comprobando…'; await refreshGpu(); });
+// Comprueba al abrir y cada 8 s (rápido si viene del acceso directo, mientras el servidor arranca)
+setTimeout(refreshGpu, 300);
+setInterval(refreshGpu, wantsLocal ? 4000 : 8000);
 
 // ================= Utilidades de imagen =================
 function loadImage(src) {
@@ -292,7 +320,7 @@ $('#videoForm').addEventListener('submit', async (e) => {
   const params = {
     model: model.key, prompt, duration: vDur.value, ratio: vRatio.value,
     negative: $('#videoNeg').value.trim(), seed: $('#videoSeed').value,
-    translate: $('#videoTranslate').checked,
+    translate: $('#videoTranslate').checked, localKeyframe: true,
     ...(img ? { image: img.dataUrl, imageW: img.w, imageH: img.h } : {}),
   };
   const stage = $('#videoStage');
@@ -322,6 +350,7 @@ $('#videoForm').addEventListener('submit', async (e) => {
 const iModel = $('#imageModel'), iSize = $('#imageSize');
 IMAGE_MODELS.forEach((m) => iModel.add(new Option(m.name, m.key)));
 RATIOS.forEach((r) => iSize.add(new Option(r, r)));
+iModel.value = 'flux-schnell';
 iSize.value = '1:1';
 const refreshImageTag = () => { $('#imageModelTag').textContent = IMAGE_MODELS.find((m) => m.key === iModel.value).tag; };
 iModel.onchange = refreshImageTag; refreshImageTag();
@@ -331,6 +360,7 @@ $('#imageForm').addEventListener('submit', async (e) => {
   const prompt = $('#imagePrompt').value.trim();
   if (!prompt) return toast('Describe tu imagen');
   const model = IMAGE_MODELS.find((m) => m.key === iModel.value);
+  if (model.key === 'local' && !(await refreshGpu())) { $('#gpuDlg').showModal(); return; }
   const params = { model: model.key, prompt, ratio: iSize.value, count: $('#imageNum').value, seed: $('#imageSeed').value, translate: $('#imageTranslate').checked };
   const stage = $('#imageStage');
   const res = await runJob('image', params, stage, $('#imageBtn'));
