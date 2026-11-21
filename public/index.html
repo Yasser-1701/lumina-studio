@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lumina Studio</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%238b5cf6'/><stop offset='1' stop-color='%2306b6d4'/></linearGradient></defs><rect width='32' height='32' rx='8' fill='url(%23g)'/><path d='M12 9l11 7-11 7z' fill='white'/></svg>" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo"><svg viewBox="0 0 24 24"><path d="M9 6l9 6-9 6z"/></svg></span>
+      <span>Lumina <b>Studio</b></span><span class="free-pill">GRATIS</span>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-tab="video">🎬 Vídeo</button>
+      <button class="tab" data-tab="image">🖼️ Imagen</button>
+      <button class="tab" data-tab="aiedit">✨ Editar con IA</button>
+      <button class="tab" data-tab="editor">🎚️ Editor de fotos</button>
+      <button class="tab" data-tab="gallery">📁 Galería <span id="galleryCount" class="count">0</span></button>
+    </nav>
+    <span id="apiStatus" class="api-status">…</span>
+  </header>
+
+  <div id="setupBanner" class="banner hidden">
+    <b>100 % gratis, sin cuenta.</b> Los vídeos usan GPUs gratuitas de Hugging Face con una cuota diaria limitada.
+    Para tener <b>mucha más cuota</b> (también gratis): crea una cuenta en huggingface.co, genera un token en
+    <i>Settings → Access Tokens</i> y ponlo en el archivo <code>.env</code> como <code>HF_TOKEN=hf_...</code>.
+    <button class="banner-x" id="bannerClose" title="Cerrar">✕</button>
+  </div>
+
+  <main>
+    <!-- ================= VÍDEO ================= -->
+    <section id="tab-video" class="panel active">
+      <div class="workspace">
+        <form class="controls card" id="videoForm">
+          <div class="seg" id="videoMode">
+            <button type="button" class="active" data-mode="t2v">Texto → Vídeo</button>
+            <button type="button" data-mode="i2v">Imagen → Vídeo</button>
+          </div>
+
+          <div id="videoImageWrap" class="hidden">
+            <label class="lbl">Imagen inicial (primer fotograma)</label>
+            <div class="drop" data-target="video">
+              <input type="file" accept="image/*" hidden />
+              <div class="drop-empty">Arrastra una imagen o <u>haz clic</u></div>
+              <img class="drop-preview hidden" alt="" />
+              <button type="button" class="drop-clear hidden" title="Quitar">✕</button>
+            </div>
+          </div>
+
+          <label class="lbl" for="videoPrompt">Describe tu vídeo</label>
+          <textarea id="videoPrompt" rows="5" placeholder="Un astronauta camina por un mercado nocturno en Tokio, luces de neón reflejadas en los charcos, travelling lento…" required></textarea>
+          <div class="chips" data-for="videoPrompt" data-set="video"></div>
+
+          <div class="grid2">
+            <div>
+              <label class="lbl" for="videoModel">Modelo</label>
+              <select id="videoModel"></select>
+            </div>
+            <div>
+              <label class="lbl" for="videoDuration">Duración</label>
+              <select id="videoDuration"></select>
+            </div>
+            <div id="videoRatioWrap">
+              <label class="lbl" for="videoRatio">Formato</label>
+              <select id="videoRatio"></select>
+            </div>
+            <div>
+              <label class="lbl" for="videoSeed">Semilla</label>
+              <input id="videoSeed" type="number" placeholder="Aleatoria" />
+            </div>
+          </div>
+
+          <details class="adv">
+            <summary>Opciones avanzadas</summary>
+            <label class="lbl" for="videoNeg">Prompt negativo (lo que NO quieres)</label>
+            <input id="videoNeg" placeholder="blurry, distorted, low quality, watermark" />
+            <label class="check"><input type="checkbox" id="videoTranslate" checked /> Traducir el prompt al inglés (mejores resultados)</label>
+          </details>
+
+          <button class="btn primary big" type="submit" id="videoBtn">
+            <span>Generar vídeo · Gratis</span>
+          </button>
+          <p class="hint" id="videoModelTag"></p>
+        </form>
+
+        <div class="stage card" id="videoStage">
+          <div class="placeholder">
+            <div class="ph-icon">🎬</div>
+            <h2>Crea vídeos con IA</h2>
+            <p>Escribe una escena o sube una imagen para animarla con modelos open‑source gratuitos (Wan 2.2, LTX). Tarda entre 1 y 4 minutos.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= IMAGEN ================= -->
+    <section id="tab-image" class="panel">
+      <div class="workspace">
+        <form class="controls card" id="imageForm">
+          <label class="lbl" for="imagePrompt">Describe tu imagen</label>
+          <textarea id="imagePrompt" rows="5" placeholder="Retrato de una zorra con armadura medieval, luz dramática, fondo de bosque brumoso…" required></textarea>
+          <div class="chips" data-for="imagePrompt" data-set="image"></div>
+          <div class="grid2">
+            <div>
+              <label class="lbl" for="imageModel">Modelo</label>
+              <select id="imageModel"></select>
+            </div>
+            <div>
+              <label class="lbl" for="imageSize">Formato</label>
+              <select id="imageSize"></select>
+            </div>
+            <div>
+              <label class="lbl" for="imageNum">Cantidad</label>
+              <select id="imageNum"><option>1</option><option>2</option><option>3</option><option>4</option></select>
+            </div>
+            <div>
+              <label class="lbl" for="imageSeed">Semilla</label>
+              <input id="imageSeed" type="number" placeholder="Aleatoria" />
+            </div>
+          </div>
+          <label class="check"><input type="checkbox" id="imageTranslate" checked /> Traducir el prompt al inglés (mejores resultados)</label>
+          <p class="hint" id="imageModelTag"></p>
+          <button class="btn primary big" type="submit" id="imageBtn"><span>Generar imagen · Gratis</span></button>
+        </form>
+        <div class="stage card" id="imageStage">
+          <div class="placeholder">
+            <div class="ph-icon">🖼️</div>
+            <h2>Genera imágenes</h2>
+            <p>Luego puedes animarlas con «Usar en vídeo» o retocarlas con IA.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= EDITAR CON IA ================= -->
+    <section id="tab-aiedit" class="panel">
+      <div class="workspace">
+        <form class="controls card" id="aiEditForm">
+          <label class="lbl">Tu foto</label>
+          <div class="drop" data-target="aiedit">
+            <input type="file" accept="image/*" hidden />
+            <div class="drop-empty">Arrastra una foto o <u>haz clic</u></div>
+            <img class="drop-preview hidden" alt="" />
+            <button type="button" class="drop-clear hidden" title="Quitar">✕</button>
+          </div>
+          <label class="lbl">Herramienta</label>
+          <div class="tools" id="aiTools"></div>
+          <div id="aiPromptWrap">
+            <label class="lbl" for="aiPrompt">¿Qué quieres cambiar?</label>
+            <textarea id="aiPrompt" rows="4"></textarea>
+          </div>
+          <p class="hint" id="aiHint"></p>
+          <button class="btn primary big" type="submit" id="aiBtn"><span>Aplicar</span></button>
+        </form>
+        <div class="stage card" id="aiStage">
+          <div class="placeholder">
+            <div class="ph-icon">✨</div>
+            <h2>Retoque inteligente</h2>
+            <p>Cambia fondos, objetos o estilos con una frase, o quita el fondo. Gratis con FLUX Kontext.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= EDITOR MANUAL ================= -->
+    <section id="tab-editor" class="panel">
+      <div class="workspace editor">
+        <div class="controls card" id="editorControls">
+          <div class="drop small" data-target="editor">
+            <input type="file" accept="image/*" hidden />
+            <div class="drop-empty">📂 Abrir foto</div>
+          </div>
+
+          <label class="lbl">Filtros</label>
+          <div class="presets" id="presets"></div>
+
+          <label class="lbl">Ajustes</label>
+          <div id="sliders"></div>
+
+          <label class="lbl">Transformar</label>
+          <div class="btnrow">
+            <button class="btn" data-act="rotL" title="Girar a la izquierda">⟲ 90°</button>
+            <button class="btn" data-act="rotR" title="Girar a la derecha">⟳ 90°</button>
+            <button class="btn" data-act="flipH" title="Voltear horizontal">⇋</button>
+            <button class="btn" data-act="flipV" title="Voltear vertical">⇅</button>
+          </div>
+          <label class="lbl" for="cropSel">Recortar</label>
+          <select id="cropSel">
+            <option value="">Original</option>
+            <option value="1">1:1 (Instagram)</option>
+            <option value="0.8">4:5 (Retrato)</option>
+            <option value="1.7778">16:9 (YouTube)</option>
+            <option value="0.5625">9:16 (Stories/TikTok)</option>
+            <option value="1.3333">4:3</option>
+          </select>
+
+          <label class="lbl" for="txtOverlay">Texto</label>
+          <input id="txtOverlay" placeholder="Escribe un texto para superponer" />
+          <div class="grid2">
+            <div><label class="lbl" for="txtSize">Tamaño</label><input id="txtSize" type="range" min="2" max="20" value="7" /></div>
+            <div><label class="lbl" for="txtColor">Color</label><input id="txtColor" type="color" value="#ffffff" /></div>
+          </div>
+
+          <div class="btnrow">
+            <button class="btn" data-act="reset">Restablecer</button>
+            <button class="btn" data-act="compare">Antes / después</button>
+          </div>
+          <div class="btnrow">
+            <button class="btn primary" data-act="download">⬇ Descargar</button>
+            <button class="btn" data-act="toAi">✨ Editar con IA</button>
+            <button class="btn" data-act="toVideo">🎬 Animar</button>
+          </div>
+        </div>
+        <div class="stage card checker" id="editorStage">
+          <canvas id="editorCanvas" class="hidden"></canvas>
+          <div class="placeholder" id="editorPh">
+            <div class="ph-icon">🎚️</div>
+            <h2>Editor de fotos</h2>
+            <p>Filtros, brillo, contraste, recortes y texto. Funciona en tu navegador, sin clave de API.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= GALERÍA ================= -->
+    <section id="tab-gallery" class="panel">
+      <div class="gallery-head">
+        <div class="seg" id="galleryFilter">
+          <button class="active" data-f="all">Todo</button>
+          <button data-f="video">Vídeos</button>
+          <button data-f="image">Imágenes</button>
+        </div>
+        <button class="btn" id="galleryClear">Vaciar galería</button>
+      </div>
+      <div class="gallery" id="gallery"></div>
+      <p class="hint center" id="galleryEmpty">Aún no hay creaciones. ¡Genera tu primer vídeo!</p>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
